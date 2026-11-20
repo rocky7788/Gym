@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR FACTORY - Gym Membership Manager</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fff1f2',
+                            100: '#ffe4e6',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                            800: '#991b1b',
+                            900: '#7f1d1d',
+                        },
+                        darkbg: '#0f0f12',
+                        cardbg: '#18181c',
+                        borderbg: '#27272a',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f0f12; color: #f4f4f5; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #18181c; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+        @media print {
+            body * { visibility: hidden; }
+            #receiptModalBox, #receiptModalBox * { visibility: visible; }
+            #receiptModalBox { position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-darkbg text-zinc-100 antialiased selection:bg-brand-600 selection:text-white">
+
+    <!-- FIREBASE AUTHENTICATION SCREEN -->
+    <div id="authScreen" class="fixed inset-0 bg-darkbg z-50 flex items-center justify-center p-4">
+        <div class="bg-cardbg border border-borderbg rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="w-16 h-16 bg-cardbg border border-borderbg rounded-2xl mx-auto flex items-center justify-center shadow-lg overflow-hidden">
+                    <img src="logo.png.jpeg" class="w-full h-full object-cover" alt="Logo">
+                </div>
+                <h1 class="text-2xl font-extrabold text-white tracking-tight">PR <span class="text-brand-500">FACTORY</span></h1>
+                <p id="authSubtitle" class="text-xs text-zinc-400">Sign in to sync your gym data securely on cloud</p>
+            </div>
+
+            <form id="authForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-300 uppercase mb-1">Email Address</label>
+                    <input type="email" id="authEmail" required placeholder="admin@prfactory.com" 
+                        class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-brand-500 transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-300 uppercase mb-1">Password</label>
+                    <input type="password" id="authPassword" required placeholder="••••••••" minlength="6"
+                        class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-brand-500 transition">
+                </div>
+                
+                <div id="authError" class="text-xs text-rose-400 text-center font-medium min-h-[16px]"></div>
+
+                <button type="submit" id="authSubmitBtn" class="w-full bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-xl text-sm font-bold transition shadow-lg active:scale-95">
+                    Sign In
+                </button>
+            </form>
+
+            <div class="text-center text-xs">
+                <button type="button" id="toggleAuthBtn" class="text-zinc-400 hover:text-brand-400 transition">
+                    Don't have an account? <span class="text-brand-500 font-semibold">Sign Up</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="appContainer" class="min-h-screen flex flex-col hidden">
+        <header class="border-b border-borderbg bg-cardbg/80 backdrop-blur sticky top-0 z-30">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-cardbg border border-borderbg rounded-xl shadow-lg overflow-hidden flex items-center justify-center">
+                        <img src="logo.png.jpeg" class="w-full h-full object-cover" alt="Logo">
+                    </div>
+                    <div>
+                        <h1 class="font-extrabold text-xl tracking-tight text-white flex items-center gap-2">
+                            PR<span class="text-brand-500">FACTORY</span>
+                        </h1>
+                        <p class="text-xs text-zinc-400 hidden sm:block">Gym Membership & Fee Manager</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <span id="userEmailDisplay" class="text-xs text-zinc-400 hidden md:inline font-medium"></span>
+                    
+                    <button onclick="openAddModal()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span class="hidden sm:inline">Add New Member</span>
+                        <span class="sm:hidden">Add</span>
+                    </button>
+                    <button id="logoutBtn" class="bg-zinc-800 hover:bg-zinc-700 text-rose-400 p-2.5 rounded-xl text-sm font-bold border border-borderbg transition" title="Logout">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <!-- Stats Grid -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-5 relative overflow-hidden group hover:border-zinc-700 transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Total Members</p>
+                            <h3 id="statTotalMembers" class="text-3xl font-bold text-white mt-1">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs text-zinc-400">
+                        <span id="statActiveRatio" class="text-blue-400 font-semibold mr-1">0%</span> Active subscribers
+                    </div>
+                </div>
+
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-5 relative overflow-hidden group hover:border-zinc-700 transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Active Members</p>
+                            <h3 id="statActiveMembers" class="text-3xl font-bold text-emerald-400 mt-1">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-user-check"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs text-zinc-400">
+                        <span class="text-emerald-400 font-semibold mr-1"><i class="fa-solid fa-circle text-[8px] mr-1"></i>Valid</span> Access granted
+                    </div>
+                </div>
+
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-5 relative overflow-hidden group hover:border-zinc-700 transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Expired / Due Soon</p>
+                            <h3 id="statExpiringMembers" class="text-3xl font-bold text-amber-400 mt-1">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs text-zinc-400">
+                        <span class="text-amber-400 font-semibold mr-1">Renewal required</span> within 7 days
+                    </div>
+                </div>
+
+                <div class="bg-cardbg border border-borderbg rounded-2xl p-5 relative overflow-hidden group hover:border-zinc-700 transition">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Collected Revenue</p>
+                            <h3 id="statTotalRevenue" class="text-3xl font-bold text-brand-500 mt-1">₹0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-indian-rupee-sign"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex items-center text-xs text-zinc-400">
+                        Pending Dues: <span id="statPendingDues" class="text-rose-400 font-semibold ml-1">₹0</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Controls & Filters Section -->
+            <section class="bg-cardbg border border-borderbg rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400"></i>
+                    <input type="text" id="searchInput" placeholder="Search by name, phone number..." 
+                        class="w-full bg-darkbg border border-borderbg rounded-xl pl-10 pr-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition">
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <div class="flex items-center bg-darkbg border border-borderbg rounded-xl p-1 text-xs font-medium">
+                        <button onclick="setFilter('all')" id="filterBtn-all" class="px-3 py-1.5 rounded-lg transition filter-btn bg-brand-600 text-white">All</button>
+                        <button onclick="setFilter('active')" id="filterBtn-active" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white transition filter-btn">Active</button>
+                        <button onclick="setFilter('pending')" id="filterBtn-pending" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white transition filter-btn">Pending Payment</button>
+                        <button onclick="setFilter('expired')" id="filterBtn-expired" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-white transition filter-btn">Expired</button>
+                    </div>
+
+                    <select id="sortBy" onchange="renderMembers()" class="bg-darkbg border border-borderbg text-xs rounded-xl px-3 py-2 text-zinc-300 focus:outline-none focus:border-brand-500">
+                        <option value="expiryAsc">Sort: Expiry (Soonest)</option>
+                        <option value="nameAsc">Sort: Name (A-Z)</option>
+                        <option value="joinDesc">Sort: Joining Date (Newest)</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Member List Table -->
+            <section class="bg-cardbg border border-borderbg rounded-2xl overflow-hidden shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-darkbg/60 text-zinc-400 text-xs font-semibold uppercase tracking-wider border-b border-borderbg">
+                                <th class="py-4 px-6">Member</th>
+                                <th class="py-4 px-6">Plan & Fees</th>
+                                <th class="py-4 px-6">Joining Date</th>
+                                <th class="py-4 px-6">Expiry & Status</th>
+                                <th class="py-4 px-6">Payment</th>
+                                <th class="py-4 px-6 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="membersTableBody" class="divide-y divide-borderbg text-sm">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="emptyState" class="hidden py-16 text-center">
+                    <div class="w-16 h-16 bg-zinc-800 text-zinc-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                        <i class="fa-solid fa-address-book"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-zinc-300">No Members Found</h3>
+                    <p class="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">Try adjusting your search query or filters to find what you are looking for.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add / Edit Member Modal -->
+    <div id="memberModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-cardbg border border-borderbg rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl transform transition-all">
+            <div class="p-5 border-b border-borderbg flex items-center justify-between">
+                <h3 id="modalTitle" class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-brand-500"></i> Add New Member
+                </h3>
+                <button onclick="closeModal()" class="text-zinc-400 hover:text-white transition text-lg w-8 h-8 rounded-lg flex items-center justify-center hover:bg-zinc-800">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <form id="memberForm" onsubmit="handleFormSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="memberId">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-300 uppercase mb-1">Full Name</label>
+                    <input type="text" id="memberName" required placeholder="e.g. Rahul Sharma" 
+                        class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-brand-500 transition">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-300 uppercase mb-1">Phone Number</label>
+                        <input type="tel" id="memberPhone" required placeholder="10-digit number" pattern="[0-9]{10}" title="Please enter a valid 10-digit phone number"
+                            class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-brand-500 transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-300 uppercase mb-1">Plan Duration</label>
+                        <select id="memberPlan" onchange="updateSuggestedFee()" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-brand-500 transition">
+                            <option value="1">1 Month (Monthly)</option>
+                            <option value="3">3 Months (Quarterly)</option>
+                            <option value="6">6 Months (Half-Yearly)</option>
+                            <option value="12">12 Months (Yearly)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-300 uppercase mb-1">Joining Date</label>
+                        <input type="date" id="memberJoinDate" required 
+                            class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-brand-500 transition">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-300 uppercase mb-1">Fees Amount (₹)</label>
+                        <input type="number" id="memberFee" min="0" required placeholder="1500" 
+                            class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-brand-500 transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-300 uppercase mb-1">Payment Status</label>
+                    <select id="memberStatus" class="w-full bg-darkbg border border-borderbg rounded-xl px-4 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-brand-500 transition">
+                        <option value="Paid">Paid</option>
+                        <option value="Pending">Pending</option>
+                    </select>
+                </div>
+
+                <div class="pt-4 flex items-center justify-end gap-3 border-t border-borderbg mt-6">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 transition">Cancel</button>
+                    <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white px-5 py-2 rounded-xl text-xs font-semibold transition shadow-lg shadow-brand-600/20">Save & Send Receipt</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PAYMENT RECEIPT MODAL -->
+    <div id="receiptModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div id="receiptModalBox" class="bg-white text-zinc-900 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative">
+            <div class="text-center pb-4 border-b border-zinc-200">
+                <h2 class="text-xl font-black text-red-600 tracking-wider">PR FACTORY</h2>
+                <p class="text-xs text-zinc-500">Official Payment & Membership Receipt</p>
+            </div>
+            <div class="py-4 space-y-2.5 text-sm">
+                <div class="flex justify-between"><span class="text-zinc-500">Date:</span> <strong id="recDate"></strong></div>
+                <div class="flex justify-between"><span class="text-zinc-500">Member Name:</span> <strong id="recName"></strong></div>
+                <div class="flex justify-between"><span class="text-zinc-500">Phone:</span> <strong id="recPhone"></strong></div>
+                <div class="flex justify-between"><span class="text-zinc-500">Plan Duration:</span> <strong id="recPlan"></strong></div>
+                <div class="flex justify-between"><span class="text-zinc-500">Expiry Date:</span> <strong id="recExpiry"></strong></div>
+                <div class="flex justify-between"><span class="text-zinc-500">Amount Paid:</span> <strong id="recFee" class="text-brand-600"></strong></div>
+                <div class="flex justify-between border-t pt-2 mt-2"><span class="text-zinc-500">Status:</span> <strong id="recStatus" class="text-emerald-600"></strong></div>
+            </div>
+            <div class="flex gap-2 mt-4 print:hidden">
+                <button onclick="window.print()" class="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white py-2.5 rounded-xl text-xs font-bold transition">Print / Save PDF</button>
+                <button onclick="closeReceipt()" class="flex-1 bg-zinc-200 hover:bg-zinc-300 text-zinc-800 py-2.5 rounded-xl text-xs font-bold transition">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE MODULE & FIRESTORE APPLICATION LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // APNI FIREBASE CONFIGURATION YAHAN INSERT KAREIN
+        const firebaseConfig = {
+             apiKey: "AIzaSyDHTd1sGr3KREDIF8nOB4uObpJYYZMizI0",
+  authDomain: "pr-factory-aa218.firebaseapp.com",
+  projectId: "pr-factory-aa218",
+  storageBucket: "pr-factory-aa218.firebasestorage.app",
+  messagingSenderId: "831713442250",
+  appId: "1:831713442250:web:26da665f35ce3ab2417733",
+  measurementId: "G-T5XRE29F4D"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let isSignUpMode = false;
+        const planFees = { "1": 1500, "3": 4000, "6": 7000, "12": 12000 };
+
+        let members = [];
+        let currentFilter = 'all';
+        let currentUserId = null;
+
+        const authScreen = document.getElementById('authScreen');
+        const appContainer = document.getElementById('appContainer');
+        const authForm = document.getElementById('authForm');
+        const toggleAuthBtn = document.getElementById('toggleAuthBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const authSubtitle = document.getElementById('authSubtitle');
+        const authSubmitBtn = document.getElementById('authSubmitBtn');
+        const authError = document.getElementById('authError');
+        const userEmailDisplay = document.getElementById('userEmailDisplay');
+
+        toggleAuthBtn.addEventListener('click', () => {
+            isSignUpMode = !isSignUpMode;
+            authError.innerText = "";
+            if (isSignUpMode) {
+                authSubtitle.innerText = "Create a new account to manage your gym";
+                authSubmitBtn.innerText = "Sign Up";
+                toggleAuthBtn.innerHTML = `Already have an account? <span class="text-brand-500 font-semibold">Sign In</span>`;
+            } else {
+                authSubtitle.innerText = "Sign in to sync your gym data securely on cloud";
+                authSubmitBtn.innerText = "Sign In";
+                toggleAuthBtn.innerHTML = `Don't have an account? <span class="text-brand-500 font-semibold">Sign Up</span>`;
+            }
+        });
+
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('authEmail').value.trim();
+            const pass = document.getElementById('authPassword').value.trim();
+
+            authError.innerText = "Processing...";
+            authSubmitBtn.disabled = true;
+
+            try {
+                if (isSignUpMode) {
+                    await createUserWithEmailAndPassword(auth, email, pass);
+                } else {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                }
+                authError.innerText = "";
+            } catch (err) {
+                console.error("Auth Error:", err);
+                authError.innerText = err.message.replace("Firebase: ", "");
+            } finally {
+                authSubmitBtn.disabled = false;
+            }
+        });
+
+        logoutBtn.addEventListener('click', async () => {
+            await signOut(auth);
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUserId = user.uid;
+                authScreen.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                userEmailDisplay.innerText = user.email;
+                await fetchMembersFromFirestore();
+            } else {
+                currentUserId = null;
+                authScreen.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+            }
+        });
+
+        // --- FIRESTORE DATABASE FETCH & SYNC ---
+        async function fetchMembersFromFirestore() {
+            if (!currentUserId) return;
+            try {
+                const querySnapshot = await getDocs(collection(db, "users", currentUserId, "members"));
+                members = [];
+                querySnapshot.forEach((docSnap) => {
+                    members.push({ id: docSnap.id, ...docSnap.data() });
+                });
+            } catch (err) {
+                console.error("Error fetching from Firestore:", err);
+            }
+
+            document.getElementById('memberJoinDate').value = new Date().toISOString().split('T')[0];
+            updateSuggestedFee();
+            renderStats();
+            renderMembers();
+
+            const searchInput = document.getElementById('searchInput');
+            searchInput.removeEventListener('input', renderMembers);
+            searchInput.addEventListener('input', renderMembers);
+        }
+
+        function calculateExpiry(joinDateStr, months) {
+            const join = new Date(joinDateStr);
+            const expiry = new Date(join);
+            expiry.setMonth(expiry.getMonth() + parseInt(months));
+            return expiry;
+        }
+
+        function getDaysRemaining(expiryDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const exp = new Date(expiryDate);
+            exp.setHours(0, 0, 0, 0);
+            const diffTime = exp - today;
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        }
+
+        window.updateSuggestedFee = function() {
+            const plan = document.getElementById('memberPlan').value;
+            const feeInput = document.getElementById('memberFee');
+            if (!document.getElementById('memberId').value) {
+                feeInput.value = planFees[plan] || 1500;
+            }
+        }
+
+        function renderStats() {
+            const total = members.length;
+            let activeCount = 0;
+            let expiringCount = 0;
+            let collectedRev = 0;
+            let pendingRev = 0;
+
+            members.forEach(m => {
+                const expiry = calculateExpiry(m.joinDate, m.planMonths);
+                const days = getDaysRemaining(expiry);
+
+                if (days >= 0) activeCount++;
+                if (days <= 7) expiringCount++;
+
+                if (m.paymentStatus === 'Paid') {
+                    collectedRev += Number(m.fee);
+                } else {
+                    pendingRev += Number(m.fee);
+                }
+            });
+
+            document.getElementById('statTotalMembers').textContent = total;
+            document.getElementById('statActiveMembers').textContent = activeCount;
+            document.getElementById('statExpiringMembers').textContent = expiringCount;
+            document.getElementById('statTotalRevenue').textContent = `₹${collectedRev.toLocaleString('en-IN')}`;
+            document.getElementById('statPendingDues').textContent = `₹${pendingRev.toLocaleString('en-IN')}`;
+            document.getElementById('statActiveRatio').textContent = total > 0 ? `${Math.round((activeCount / total) * 100)}%` : '0%';
+        }
+
+        window.setFilter = function(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-600', 'text-white');
+                btn.classList.add('text-zinc-400');
+            });
+            const activeBtn = document.getElementById(`filterBtn-${filter}`);
+            if(activeBtn) {
+                activeBtn.classList.add('bg-brand-600', 'text-white');
+                activeBtn.classList.remove('text-zinc-400');
+            }
+            renderMembers();
+        }
+
+        window.renderMembers = function() {
+            const tableBody = document.getElementById('membersTableBody');
+            const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
+            const sortVal = document.getElementById('sortBy').value;
+
+            tableBody.innerHTML = '';
+
+            let filtered = members.filter(m => {
+                const matchesSearch = m.name.toLowerCase().includes(searchVal) || m.phone.includes(searchVal);
+                const expiry = calculateExpiry(m.joinDate, m.planMonths);
+                const days = getDaysRemaining(expiry);
+
+                if (!matchesSearch) return false;
+
+                if (currentFilter === 'active') return days >= 0;
+                if (currentFilter === 'expired') return days < 0;
+                if (currentFilter === 'pending') return m.paymentStatus === 'Pending';
+
+                return true;
+            });
+
+            filtered.sort((a, b) => {
+                const expA = calculateExpiry(a.joinDate, a.planMonths);
+                const expB = calculateExpiry(b.joinDate, b.planMonths);
+
+                if (sortVal === 'expiryAsc') return expA - expB;
+                if (sortVal === 'nameAsc') return a.name.localeCompare(b.name);
+                if (sortVal === 'joinDesc') return new Date(b.joinDate) - new Date(a.joinDate);
+                return 0;
+            });
+
+            if (filtered.length === 0) {
+                document.getElementById('emptyState').classList.remove('hidden');
+            } else {
+                document.getElementById('emptyState').classList.add('hidden');
+            }
+
+            filtered.forEach(member => {
+                const expiry = calculateExpiry(member.joinDate, member.planMonths);
+                const days = getDaysRemaining(expiry);
+                const formattedExpiry = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                const formattedJoin = new Date(member.joinDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+                let statusBadge = '';
+                if (days < 0) {
+                    statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20"><i class="fa-solid fa-circle text-[6px]"></i> Expired (${Math.abs(days)}d ago)</span>`;
+                } else if (days <= 7) {
+                    statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20"><i class="fa-solid fa-clock text-[10px]"></i> Expiring (${days}d left)</span>`;
+                } else {
+                    statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i class="fa-solid fa-check text-[10px]"></i> Active (${days}d left)</span>`;
+                }
+
+                let paymentBadge = member.paymentStatus === 'Paid' 
+                    ? `<span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Paid</span>`
+                    : `<span class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">Pending</span>`;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-zinc-900/50 transition group";
+                tr.innerHTML = `
+                    <td class="py-4 px-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-zinc-800 text-brand-500 font-bold flex items-center justify-center border border-zinc-700">
+                                ${member.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <div class="font-semibold text-zinc-100">${escapeHtml(member.name)}</div>
+                                <div class="text-xs text-zinc-400 flex items-center gap-1">
+                                    <i class="fa-solid fa-phone text-[10px]"></i> ${escapeHtml(member.phone)}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="font-medium text-zinc-200">${member.planMonths} Month${member.planMonths > 1 ? 's' : ''}</div>
+                        <div class="text-xs text-brand-400 font-semibold">₹${Number(member.fee).toLocaleString('en-IN')}</div>
+                    </td>
+                    <td class="py-4 px-6 text-zinc-300 text-xs">
+                        ${formattedJoin}
+                    </td>
+                    <td class="py-4 px-6">
+                        <div class="space-y-1">
+                            ${statusBadge}
+                            <div class="text-[11px] text-zinc-400">Expires: ${formattedExpiry}</div>
+                        </div>
+                    </td>
+                    <td class="py-4 px-6">
+                        ${paymentBadge}
+                    </td>
+                    <td class="py-4 px-6 text-right">
+                        <div class="flex items-center justify-end gap-1">
+                            <button onclick="sendReceiptWhatsApp('${member.id}')" title="Send Receipt on WhatsApp" class="p-2 text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition">
+                                <i class="fa-solid fa-file-invoice-dollar text-base"></i>
+                            </button>
+                            <button onclick="sendExpiryReminderWhatsApp('${member.id}')" title="Send Renewal Reminder" class="p-2 text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition">
+                                <i class="fa-brands fa-whatsapp text-lg"></i>
+                            </button>
+                            <button onclick="openReceipt('${member.id}')" title="View Receipt" class="p-2 text-zinc-400 hover:bg-zinc-800 rounded-lg transition">
+                                <i class="fa-solid fa-receipt text-base"></i>
+                            </button>
+                            <button onclick="openEditModal('${member.id}')" title="Edit Member" class="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="deleteMember('${member.id}')" title="Delete Member" class="p-2 text-rose-500 hover:bg-rose-500/10 rounded-lg transition">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        window.openAddModal = function() {
+            document.getElementById('modalTitle').innerHTML = `<i class="fa-solid fa-user-plus text-brand-500"></i> Add New Member`;
+            document.getElementById('memberId').value = '';
+            document.getElementById('memberForm').reset();
+            document.getElementById('memberJoinDate').value = new Date().toISOString().split('T')[0];
+            updateSuggestedFee();
+            document.getElementById('memberModal').classList.remove('hidden');
+        }
+
+        window.openEditModal = function(id) {
+            const member = members.find(m => m.id === id);
+            if (!member) return;
+
+            document.getElementById('modalTitle').innerHTML = `<i class="fa-solid fa-pen-to-square text-brand-500"></i> Edit Member`;
+            document.getElementById('memberId').value = member.id;
+            document.getElementById('memberName').value = member.name;
+            document.getElementById('memberPhone').value = member.phone;
+            document.getElementById('memberPlan').value = member.planMonths;
+            document.getElementById('memberJoinDate').value = member.joinDate;
+            document.getElementById('memberFee').value = member.fee;
+            document.getElementById('memberStatus').value = member.paymentStatus;
+
+            document.getElementById('memberModal').classList.remove('hidden');
+        }
+
+        window.closeModal = function() {
+            document.getElementById('memberModal').classList.add('hidden');
+        }
+
+        window.handleFormSubmit = async function(e) {
+            e.preventDefault();
+            if (!currentUserId) return;
+
+            const id = document.getElementById('memberId').value;
+            const name = document.getElementById('memberName').value.trim();
+            const phone = document.getElementById('memberPhone').value.trim();
+            const planMonths = parseInt(document.getElementById('memberPlan').value);
+            const joinDate = document.getElementById('memberJoinDate').value;
+            const fee = parseFloat(document.getElementById('memberFee').value);
+            const paymentStatus = document.getElementById('memberStatus').value;
+
+            const memberData = { name, phone, planMonths, joinDate, fee, paymentStatus };
+
+            try {
+                if (id) {
+                    await updateDoc(doc(db, "users", currentUserId, "members", id), memberData);
+                    const index = members.findIndex(m => m.id === id);
+                    if (index !== -1) members[index] = { id, ...memberData };
+                } else {
+                    const docRef = await addDoc(collection(db, "users", currentUserId, "members"), memberData);
+                    members.push({ id: docRef.id, ...memberData });
+                }
+
+                renderStats();
+                renderMembers();
+                closeModal();
+                if (!id) sendReceiptWhatsApp(members[members.length - 1].id);
+            } catch (err) {
+                console.error("Error saving member to Firestore:", err);
+                alert("Member save karne me error aayi!");
+            }
+        }
+
+        window.deleteMember = async function(id) {
+            if (!currentUserId) return;
+            if (confirm("Are you sure you want to remove this member record?")) {
+                try {
+                    await deleteDoc(doc(db, "users", currentUserId, "members", id));
+                    members = members.filter(m => m.id !== id);
+                    renderStats();
+                    renderMembers();
+                } catch (err) {
+                    console.error("Error deleting member:", err);
+                    alert("Delete karne me error aayi!");
+                }
+            }
+        }
+
+        window.openReceipt = function(id) {
+            const m = members.find(item => item.id === id);
+            if (!m) return;
+
+            const expiry = calculateExpiry(m.joinDate, m.planMonths);
+            const formattedExpiry = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+            document.getElementById('recDate').innerText = new Date().toLocaleDateString('en-IN');
+            document.getElementById('recName').innerText = m.name;
+            document.getElementById('recPhone').innerText = m.phone;
+            document.getElementById('recPlan').innerText = `${m.planMonths} Month(s)`;
+            document.getElementById('recExpiry').innerText = formattedExpiry;
+            document.getElementById('recFee').innerText = `₹${Number(m.fee).toLocaleString('en-IN')}`;
+            document.getElementById('recStatus').innerText = m.paymentStatus;
+            document.getElementById('recStatus').className = m.paymentStatus === 'Paid' ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold';
+
+            document.getElementById('receiptModal').classList.remove('hidden');
+        }
+
+        window.closeReceipt = function() {
+            document.getElementById('receiptModal').classList.add('hidden');
+        }
+
+       window.sendReceiptWhatsApp = function(id) {
+            const m = members.find(item => item.id === id);
+            if (!m) return;
+
+            const expiry = calculateExpiry(m.joinDate, m.planMonths);
+            const formattedExpiry = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            const formattedJoin = new Date(m.joinDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            const todayDate = new Date().toLocaleDateString('en-IN');
+
+            let msg = `🏋️‍♂️ *PR FACTORY - PAYMENT RECEIPT* 🏋️‍♂️\n\n` +
+                      `📅 Receipt Date: ${todayDate}\n` +
+                      `👤 Name: *${m.name}*\n` +
+                      `🗓️ Joining Date: *${formattedJoin}*\n` +
+                      `⏳ Plan Duration: ${m.planMonths} Month(s)\n` +
+                      `🔒 Expiry Date: *${formattedExpiry}*\n` +
+                      `💵 Fee Amount: *₹${Number(m.fee).toLocaleString('en-IN')}*\n` +
+                      `📌 Payment Status: *${m.paymentStatus}*\n\n` +
+                      `Thank you for joining PR Factory! Keep pushing your limits! 💪`;
+
+            const encoded = encodeURIComponent(msg);
+            window.open(`https://wa.me/91${m.phone}?text=${encoded}`, '_blank');
+        }
+
+        window.sendExpiryReminderWhatsApp = function(id) {
+            const m = members.find(item => item.id === id);
+            if (!m) return;
+
+            const expiry = calculateExpiry(m.joinDate, m.planMonths);
+            const formattedExpiry = expiry.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            const days = getDaysRemaining(expiry);
+
+            let msg = `Hi ${m.name},\n\nThis is a friendly reminder from *PR FACTORY* 🏋️‍♂️.\n`;
+            if (m.paymentStatus === 'Pending') {
+                msg += `Your membership fee payment of *₹${m.fee}* is currently pending.\n`;
+            }
+            if (days < 0) {
+                msg += `Your gym membership has *expired* on ${formattedExpiry}.\n`;
+            } else {
+                msg += `Your membership renewal date is coming up on *${formattedExpiry}* (${days} days left).\n`;
+            }
+            msg += `\nPlease complete your renewal to continue enjoying uninterrupted workout sessions! 💪`;
+
+            const encoded = encodeURIComponent(msg);
+            window.open(`https://wa.me/91${m.phone}?text=${encoded}`, '_blank');
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+    </script>
+</body>
+</html>
